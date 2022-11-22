@@ -15,5 +15,5 @@ function parserFor(grammar) {
     return function(lex) { return parse(states[0], start, lex); };
 }
 
-module.exports = { Grammar: require('./grammar').Grammar, Rule: require('./grammar').Rule, compile: require('./lr1').compile, parserFor, }
+module.exports = { Grammar: require('./grammar').ContextFreeGrammar, Rule: require('./grammar').GrammarRule, compile: require('./lr1').compile, parserFor }
 
