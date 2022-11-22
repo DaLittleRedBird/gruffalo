@@ -138,9 +138,9 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     let hash = symbols.join(', ');
     if (this._listFirst[hash]) { return this._listFirst[hash]; }
     let result = {};
-    for (var i = 0; i < symbols.length; i++) {
+    for (i = 0; i < symbols.length; i++) {
         let terminals = this.firstTerminalFor(symbols[i], seenRules);
-        for (var key in terminals) { result[key] = true; }
+        for (let key in terminals) { result[key] = true; }
         if (!terminals['$null']) { break; }
     }
     return this._listFirst[hash] = result;
