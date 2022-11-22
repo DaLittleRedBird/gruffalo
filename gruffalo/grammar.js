@@ -32,8 +32,9 @@ GrammarRule.prototype.startItem = function(lookahead) {
 
 GrammarRule.prototype.toString = function() { return this.target.toString() + ' → ' + this.symbols.join(' '); }
 
+//This one is bizzare...
 GrammarRule.prototype.reverse = function() {
-    let clone = new GrammarRule(this.target, reversed(this.symbols), null);
+    let clone = new GrammarRule(this.target, this.symbols.reverse(), null);
     clone.priority = this.priority;
     clone._original = this;
     return clone;
@@ -144,6 +145,11 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbol, seenRules) {
     }
     return this._listFirst[hash] = result;
 }
+
+/*var cfg = new ContextFreeGrammar({start : "S"});
+cfg.addProductionRule(new GrammarRule("S", ["S", "S"], (function(A) {return ["S", A, A];})));
+cfg.addProductionRule(new GrammarRule("S", ["m", "n"], (function() {return ["S", "m", "n"];})));
+console.log(cfg.getProductionRule("S").toString());*/
 
 module.exports = { GrammarRule, CLR, ContextFreeGrammar, };
 
