@@ -1,8 +1,9 @@
 
-const { LR1, } = require('./grammar');
+const { CLR } = require('./grammar');
 const { generateStates, State, } = require('./states');
 
 var highestID = 0, source = '';
+const CLREOF = "$";
 
 //WARNING : THE Block function hasn't been tested yet, if you want to use Gruffalo, fork the original code.
 function Block(name, ops) { //Probably a C code block.
@@ -159,26 +160,19 @@ function reduce(rule, str) {
 }
 
 function push(state) {
-  source = '';
-  // source += 'console.log("p' + state.index + '")\n';
-  source += 'STACK.push(g' + state.index + ')\n';
-  source += 'NODES.push(DATA)\n';
-
-  let used = {};
-  used['g' + state.index] = true;
-
-  return new Block('p' + state.index, [ code(source, used) ])
+    source = '';
+    // source += 'console.log("p' + state.index + '")\n';
+    source += 'STACK.push(g' + state.index + ')\n';
+    source += 'NODES.push(DATA)\n';
+    let used = {};
+    used['g' + state.index] = true;
+    return new Block('p' + state.index, [ code(source, used) ])
 }
 
 function specialReduce(state, rule) {
-  for (var i = rule.symbols.length; i--; ) {
+  for (var i = rule.symbols.length; i--;) {
     let incoming = state.incoming
-    if (incoming.length !== 1) {
-      return new Block([
-        call('r' + rule.id),
-        jump('STACK[STACK.length - 1]'),
-      ])
-    }
+    if (incoming.length !== 1) { return new Block([ call('r' + rule.id), jump('STACK[STACK.length - 1]') ]); }
     state = state.incoming[0]
   }
 
@@ -192,21 +186,19 @@ function specialReduce(state, rule) {
 }
 
 function reductions(state) {
-  let exit = ''
-  exit += 'CONT = g' + state.index + '\n'
+  let exit = 'CONT = g' + state.index + '\n';
 
-  let used = {}
-  used['g' + state.index] = true
-  var op = code(exit, used)
+  let used = {};
+  used['g' + state.index] = true;
+  var op = code(exit, used);
 
-  let rules = {}
-  let jumps = {}
+  let rules = {}, jumps = {};
   for (let lookahead in state.reductions) {
-    let match = lookahead == LR1.EOF ? '$' : lookahead
+    let match = lookahead == CLREOF ? '$' : lookahead
     for (let item of state.reductions[lookahead]) {
-      let rule = item.rule
-      ;(jumps[rule.id] = jumps[rule.id] || []).push(match)
-      rules[rule.id] = rule
+      let rule = item.rule;
+      (jumps[rule.id] = jumps[rule.id] || []).push(match);
+      rules[rule.id] = rule;
     }
   }
 
@@ -215,75 +207,59 @@ function reductions(state) {
     op = if_('VAL', jumps[ruleId], body, new Block([op]))
   }
 
-  if (state.accept) {
-    op = if_('VAL', ['$'], new Block([call('accept')]), new Block([op]))
-  }
+  if (state.accept) { op = if_('VAL', ['$'], new Block([call('accept')]), new Block([op])); }
 
-  return new Block('i' + state.index, [ op ])
+  return new Block('i' + state.index, [ op ]);
 }
 
 function go(state) {
-  var op = error('g' + state.index)
-
-  let jumps = {}
+  var op = error('g' + state.index);
+  let jumps = {};
   for (var symbol in state.transitions) {
-    let next = state.transitions[symbol]
-    ;(jumps[next.index] = jumps[next.index] || []).push(symbol)
+    let next = state.transitions[symbol];
+    (jumps[next.index] = jumps[next.index] || []).push(symbol);
   }
 
   for (var next in jumps) {
-    let body = new Block([
-      call('p' + next),
-      jump('i' + next),
-    ])
-    op = if_('GOTO', jumps[next], body, new Block([op]))
+    let body = new Block([ call('p' + next), jump('i' + next) ]);
+    op = if_('GOTO', jumps[next], body, new Block([op]));
   }
 
-  return new Block('g' + state.index, [op])
+  return new Block('g' + state.index, [op]);
 }
 
 
 function compile(grammar) {
-  let states = generateStates(grammar)
-  // console.log(states.map(state => state.debug()).join('\n'))
-  // console.log('digraph G {\nrankdir=LR\n' + states.map(state => state.toDot()).join('\n') + '\n}')
-  let start = states[0]
+  let states = generateStates(grammar);
+  // console.log(states.map(state => state.debug()).join('\n'));
+  // console.log('digraph G {\nrankdir=LR\n' + states.map(state => state.toDot()).join('\n') + '\n}');
+  let start = states[0];
 
-  function str(x) {
-    return JSON.stringify('' + x)
-  }
+  function str(x) { return JSON.stringify('' + x); }
 
-  let blocks = {}
-  function add(block) {
-    blocks[block.name] = block
-  }
-  add(new Block('accept', [code('return null\n')]))
+  let blocks = {};
+  function add(block) { blocks[block.name] = block; }
+  add(new Block('accept', [code('return null\n')]));
 
-  for (var j = 0; j < grammar.rules.length; j++) {
-    add(reduce(grammar.rules[j], str))
-  }
+  for (var j = 0; j < grammar.rules.length; j++) { add(reduce(grammar.rules[j], str)); }
 
   for (var i = 0; i < states.length; i++) {
-    let state = states[i]
-    add(go(state))
-    add(push(state))
-    add(reductions(state))
+    let state = states[i];
+    add(go(state));
+    add(push(state));
+    add(reductions(state));
   }
 
-  for (var key in blocks) {
-    blocks[key].resolve(blocks)
-  }
+  for (var key in blocks) { blocks[key].resolve(blocks); }
 
-  let functions = {}
-  let calls = { 'g0': true, 'i0': true }
+  let functions = {}, calls = { 'g0': true, 'i0': true };
   for (var key in blocks) {
     let block = blocks[key]
-    let source = ''
-    source += 'function ' + block.name + '() {\n'
-    source += block.generate(calls, str)
-    source += '}\n'
-    source += '\n'
-    functions[key] = source
+    let source = '';
+    source += 'function ' + block.name + '() {\n';
+    source += block.generate(calls, str);
+    source += '}\n\n';
+    functions[key] = source;
   }
   // TODO generate less functions?
 
@@ -294,13 +270,8 @@ function compile(grammar) {
   function error(id) { throw new Error(id + ' ' + TOKEN.type); }
   \n`
 
-  var count = 0
-  for (var key in functions) {
-    if (calls[key]) {
-      source += functions[key]
-      count++
-    }
-  }
+  var count = 0;
+  for (var key in functions) { if (calls[key]) { source += functions[key]; count++; } }
   // process.stderr.write(count + ' functions generated\n')
 
   source += `
@@ -326,15 +297,12 @@ function compile(grammar) {
   return NODES[0]
   \n`
 
-  source += '}\n';
-  source += '})\n';
+  source += '}\n})\n';
 
   // process.stderr.write(source.length + ' bytes\n');
   // console.log(source);
   return source;
 }
 
-
-
-module.exports = { compile, }
+module.exports = { compile }
 
