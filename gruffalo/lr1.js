@@ -1,223 +1,173 @@
 
-const {
-  LR1,
-} = require('./grammar')
-const {
-  generateStates,
-  State,
-} = require('./states')
+const { LR1, } = require('./grammar');
+const { generateStates, State, } = require('./states');
 
+var highestID = 0, source = '';
 
-class Block {
-  constructor(name, ops) {
-    if (name instanceof Array) {
-      ops = name
-      name = 'tmp' + ++Block.highestId
-    }
-    this.name = name
-    this.ops = ops
-    if (!(ops instanceof Array)) throw new Error(JSON.stringify(ops))
-    if (ops[0].action === 'if' && ops.length > 1) { throw 'bad' }
-  }
+//WARNING : THE Block function hasn't been tested yet, if you want to use Gruffalo, fork the original code.
+function Block(name, ops) { //Probably a C code block.
+    if (name instanceof Array) { ops = name; name = 'tmp' + ++highestID; }
+    this.name = name;
+    this.ops = ops;
+    if (!(ops instanceof Array)) { throw new Error(JSON.stringify(ops)); }
+    if (ops[0].action === 'if' && ops.length > 1) { throw 'bad'; };
+}
 
-  resolve(lookup) {
+Block.prototype.resolve = function(lookup) {
     function resolve(block) {
-      if (block.resolve) {
-        block.resolve(lookup)
-      } else if (typeof block === 'string' && lookup[block]) {
-        block = lookup[block]
-        block.resolve(lookup)
-      }
-      return block
+        if (block.resolve) {
+            block.resolve(lookup);
+        } else if (typeof block === 'string' && lookup[block]) {
+            block = lookup[block];
+            block.resolve(lookup);
+        }
+        return block;
     }
 
     for (var i = 0; i < this.ops.length; i++) {
-      let op = this.ops[i]
-      switch (op.action) {
-        case 'jump': op.block = resolve(op.block); break
-        case 'call': op.block = resolve(op.block); break
-        case 'if': op.tblock = resolve(op.tblock); op.fblock = resolve(op.fblock); break
-      }
+        let op = this.ops[i];
+        switch (op.action) {
+            case 'jump': op.block = resolve(op.block); break;
+            case 'call': op.block = resolve(op.block); break;
+            case 'if': op.tblock = resolve(op.tblock); op.fblock = resolve(op.fblock); break;
+        }
     }
-  }
+}
 
-  generate(calls, str, elidable) {
-    var elidable = elidable || {}
-    var source = ''
+Block.prototype.generate = function(calls, str, elidable) {
+    let elidable = elidable || {};
+    source = '';
     for (let op of this.ops) {
       switch (op.action) {
-        case 'if':
-          source += this.generateIf(op, calls, str, elidable)
-          break
+        case 'if': source += this.generateIf(op, calls, str, elidable); break;
         case 'call':
           if (op.block.generate) {
             source += op.block.generate(calls, str, elidable)
           } else {
-            calls[op.block] = true
-            source += op.block + '()\n'
+            calls[op.block] = true;
+            source += op.block + '()\n';
           }
-          break
+          break;
         case 'exec':
-          for (let key in op.used) {
-            calls[key] = true
-          }
-          source += op.source
-          break
+          for (let key in op.used) { calls[key] = true; }
+          source += op.source;
+          break;
         case 'jump':
-          let block = op.block
+          let block = op.block;
           if (block.generate) {
-            if (!block.generate) debugger
-            source += block.generate(calls, str, elidable)
+            if (!block.generate) { debugger; }
+            source += block.generate(calls, str, elidable);
           } else {
-            calls[op.block] = true
-            source += 'return ' + op.block + '\n'
+            calls[op.block] = true;
+            source += 'return ' + op.block + '\n';
           }
-          break
-        case 'error':
-          source += 'error("' + op.name + '")\n'
-          break
-        default:
-          throw JSON.stringify(op)
+          break;
+        case 'error': source += 'error("' + op.name + '")\n' break;
+        default: throw JSON.stringify(op);
       }
     }
-    return source
-  }
+    return source;
+}
 
-  generateIf(op, calls, str, elidable) {
-    let fblock = op.fblock
-    var child = fblock.ops[0]
-    if (child.action === 'if' && child.test === op.test) {
-      return this.generateSwitch(calls, str, elidable)
-    }
+Block.prototype.generateIf = function(calls, str, elidable) {
+    let fblock = op.fblock, child = fblock.ops[0];
+    if (child.action === 'if' && child.test === op.test) { return this.generateSwitch(calls, str, elidable); }
 
-    let cond = ''
+    let cond = '';
     for (var i = 0; i < op.options.length; i++) {
-      if (i > 0) { cond += ' || ' }
-      cond += op.test + ' === ' + str(op.options[i])
+        if (i > 0) { cond += ' || '; }
+        cond += op.test + ' === ' + str(op.options[i]);
     }
 
-    var source = ''
+    source = '';
     if (elidable[cond] !== undefined) {
-      if (elidable[cond]) {
-        source += op.tblock.generate(calls, str, elidable)
-      } else {
-        source += fblock.generate(calls, str, elidable)
-      }
+        if (elidable[cond]) { source += op.tblock.generate(calls, str, elidable); } else { source += fblock.generate(calls, str, elidable); }
     } else {
-      source += 'if (' + cond + ') {\n'
-      elidable[cond] = true
-      source += op.tblock.generate(calls, str, elidable)
+        source += 'if (' + cond + ') {\n';
+        elidable[cond] = true;
+        source += op.tblock.generate(calls, str, elidable);
 
-      elidable[cond] = false
-      let f = fblock.ops
-      if (f.length === 1 && f[0].action === 'if') {
-        source += '} else ' + fblock.generate(calls, str)
-      } else {
-        source += '} else {\n'
-        source += fblock.generate(calls, str)
-        source += '}\n'
-      }
-      delete elidable[op.test]
+        elidable[cond] = false;
+        let f = fblock.ops;
+        if (f.length === 1 && f[0].action === 'if') {
+            source += '} else ' + fblock.generate(calls, str);
+        } else { source += '} else {\n' + fblock.generate(calls, str) + '}\n'; }
+        delete elidable[op.test];
     }
-    return source
-  }
+    return source;
+}
 
-  generateSwitch(calls, str, elidable) {
-    var op = this.ops[0]
-    let test = op.test
-    function isCase(op) {
-      return op.action === 'if' && op.test === test
-    }
+Block.prototype.generateSwitch = function(calls, str, elidable) {
+    let op = this.ops[0], test = op.test;
+    function isCase(op) { return op.action === 'if' && op.test === test; }
 
-    var source = ''
+    source = '';
     source += 'switch (' + test + ') {\n'
 
     while (isCase(op) && op.fblock.ops.length === 1) {
-      let body = op.tblock
+        let body = op.tblock;
 
-      for (var i = 0; i < op.options.length; i++) {
-        source += 'case ' + str(op.options[i]) + ': '
-      }
+        for (var i = 0; i < op.options.length; i++) { source += 'case ' + str(op.options[i]) + ': '; }
 
-      source += body.generate(calls, str) //.replace(/\n/g, '; ')
-      source += 'break\n'
+        source += body.generate(calls, str) //.replace(/\n/g, '; ') + 'break;\n';
 
-      var fblock = op.fblock
-      op = fblock.ops[0]
+        var fblock = op.fblock;
+        op = fblock.ops[0];
     }
 
-    source += 'default: '
-    source += fblock.generate(calls, str)
-
-    source += '}\n'
-    return source
-  }
+    source += 'default: ' + fblock.generate(calls, str) + '}\n';
+    return source;
 }
-Block.highestId = 0
 
-function code(source, used) {
-  return { action: 'exec', source, used: used || {} }
-}
+function code(source, used) { return { action: 'exec', source, used: used || {} } }
 
 /* continue with new block */
-function jump(block) {
-  return { action: 'jump', block }
-}
+function jump(block) { return { action: 'jump', block } }
 
 /* execute block and then return here */
-function call(block) {
-  return { action: 'call', block }
-}
+function call(block) { return { action: 'call', block } }
 
-function if_(test, options, tblock, fblock) {
-  return { action: 'if', test, options, tblock, fblock }
-}
+function if_(test, options, tblock, fblock) { return { action: 'if', test, options, tblock, fblock } }
 
-function error(name) {
-  return { action: 'error', name }
-}
+function error(name) { return { action: 'error', name } }
 
 function reduce(rule, str) {
-  var source = ''
-  // source += 'console.log("r' + rule.id + '")\n'
+  source = '';
+  // source += 'console.log("r' + rule.id + '")\n';
 
   for (var i=rule.symbols.length; i--; ) {
-    source += ' STACK.pop()\n'
+    source += ' STACK.pop()\n';
   }
 
   for (var i = rule.symbols.length; i--; ) {
-    source += ' var c' + i + ' = NODES.pop()\n'
+    source += ' var c' + i + ' = NODES.pop()\n';
   }
-  var children = []
+  var children = [];
   for (var i = 0; i < rule.symbols.length; i++) {
-    children.push('c' + i)
+    children.push('c' + i);
   }
   if (typeof rule.build === 'function') {
     var build = rule.build.source ? rule.build.source : '' + rule.build
-    source += ' DATA = (' + build + ')(' + children.join(', ') + ')\n'
+    source += ' DATA = (' + build + ')(' + children.join(', ') + ')\n';
   } else {
-    source += ' DATA = [' + children.join(', ') + ']\n'
+    source += ' DATA = [' + children.join(', ') + ']\n';
   }
 
-  source += ' GOTO = ' + str(rule.target) + '\n'
+  source += ' GOTO = ' + str(rule.target) + '\n';
 
-  return new Block('r' + rule.id, [
-    code(source),
-  ])
+  return new Block('r' + rule.id, [ code(source), ])
 }
 
 function push(state) {
-  var source = ''
-  // source += 'console.log("p' + state.index + '")\n'
-  source += 'STACK.push(g' + state.index + ')\n'
-  source += 'NODES.push(DATA)\n'
+  source = '';
+  // source += 'console.log("p' + state.index + '")\n';
+  source += 'STACK.push(g' + state.index + ')\n';
+  source += 'NODES.push(DATA)\n';
 
-  let used = {}
-  used['g' + state.index] = true
+  let used = {};
+  used['g' + state.index] = true;
 
-  return new Block('p' + state.index, [
-    code(source, used)
-  ])
+  return new Block('p' + state.index, [ code(source, used) ])
 }
 
 function specialReduce(state, rule) {
@@ -376,17 +326,15 @@ function compile(grammar) {
   return NODES[0]
   \n`
 
-  source += '}\n'
-  source += '})\n'
+  source += '}\n';
+  source += '})\n';
 
-  // process.stderr.write(source.length + ' bytes\n')
-  // console.log(source)
-  return source
+  // process.stderr.write(source.length + ' bytes\n');
+  // console.log(source);
+  return source;
 }
 
 
 
-module.exports = {
-  compile,
-}
+module.exports = { compile, }
 
