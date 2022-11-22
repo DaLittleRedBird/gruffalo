@@ -1,5 +1,4 @@
 
-const { CLR } = require('./grammar');
 const { generateStates, State, } = require('./states');
 
 var highestID = 0, source = '';
