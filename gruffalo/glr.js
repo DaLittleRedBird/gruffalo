@@ -1,6 +1,6 @@
 
-const { LR1 } = require('./grammar');
 var i, j, highestGSSId = 0;
+const CLREOF = "$";
 
 //WARNING : The GSSNode, Path, Edge and ReduceSet objects been NOT tested yet, if you want to use Gruffalo, fork the main page.
 function GSSNode(label) {
@@ -21,21 +21,17 @@ GSSNode.prototype.addEdge = function(node) {
 GSSNode.prototype.traverse = function(length, firstEdge) {
     // assert(firstEdge.head.node === this);
     let paths = [firstEdge];
-
     for (; length--;) {
-      let newPaths = [];
-      for (i = paths.length; i--; ) {
-        
-        let path = paths[i], begin = path ? path.head.node : this;
-        let edges = begin.edgesById, keys = Object.keys(edges);
-        
-        for (j = keys.length; j--; ) {
-          let edge = edges[keys[j]];
-          newPaths.push(new Path(edge, path));
+        let newPaths = [];
+        for (i = paths.length; i--; ) {
+            let path = paths[i], begin = path ? path.head.node : this;
+            let edges = begin.edgesById, keys = Object.keys(edges);
+            for (j = keys.length; j--; ) {
+                let edge = edges[keys[j]];
+                newPaths.push(new Path(edge, path));
+            }
         }
-        
-      }
-      paths = newPaths;
+        paths = newPaths;
     }
     return paths;
 }
@@ -52,9 +48,11 @@ Path.prototype.toArray = function() {
     return outStack;
 }
 
-function Edge(node) { this.node = node; this.data = null; }
-
-Edge.prototype.debug = function() { return this.data; }
+function Edge(node) {
+    this.node = node;
+    this.data = null;
+    this.debug = function() { return this.data; }
+}
 
 /* The RNGLR paper uses Rekers for better memory efficiency.
  * Use Tomita's SPPF algorithm since it's simpler & faster.
@@ -70,7 +68,10 @@ Edge.prototype.addDerivation = function(rule, path) {
 }
 
 // TODO: how to implement this efficiently, Red-Black trees?
-function ReduceSet() { this.reductions = []; this.unique = {}; }
+function ReduceSet() {
+    this.reductions = [];
+    this.unique = {};
+}
 
 ReduceSet.prototype.insert = function(start, item, firstEdge) {
     //Hash tables are good, maybe we can use 32-bit bitstrings?
@@ -89,14 +90,13 @@ ReduceSet.prototype.pop = function() {
 var REDUCTIONS = new ReduceSet(), NODES = {}, TOKEN, LOOKAHEAD, GOTO, DATA, LENGTH;
 
 function push(advance, start) {
-  let node = NODES[advance.index]
+  let node = NODES[advance.index];
 
   if (!node) {
     // new node
     let node = NODES[advance.index] = new GSSNode(advance); // node: Node = w
 
-    /*
-     * record all reductions (of length 0)
+    /* record all reductions (of length 0)
      * together with the second node along the path
      * which is `node`, since the `start` of a Reduction is the second node... ?!
      */
@@ -105,10 +105,9 @@ function push(advance, start) {
     }
   }
 
-  let edge = node.addEdge(start)
+  let edge = node.addEdge(start);
 
-  /*
-   * we're creating a new path
+  /* we're creating a new path
    * so we need to make sure we record valid reductions (of length >0)
    * to check those against the new path
    */
@@ -122,20 +121,20 @@ function push(advance, start) {
 }
 
 function goSwitch(start) {
-  let advance = start.label.transitions[GOTO];
-  if (advance) { return push(advance, start); }
+    let advance = start.label.transitions[GOTO];
+    if (advance) { return push(advance, start); }
 }
 
 function shift(nextColumn) {
   let OLD = NODES, keys = Object.keys(OLD);
+  
   NODES = {};
-
   for (let index of keys) {
     let start = OLD[index]; // start: Node = v, advance: State = k
     let edge = goSwitch(start);
     if (edge) { edge.data = DATA; }
   }
-  return nextColumn
+  return nextColumn;
 }
 
 function reduce(item, start, firstEdge) {
@@ -197,7 +196,7 @@ function parse(startState, target, lex) {
     // check column is non-empty
     if (Object.keys(NODES).length === 0) { throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN.type)); }
     count++;
-  } while (TOKEN.type !== LR1.EOF);
+  } while (TOKEN.type !== CLREOF);
 
   reduceAll();
   // console.log(column.debug());
@@ -210,5 +209,5 @@ function parse(startState, target, lex) {
   return rootEdge.data;
 }
 
-module.exports = { parse, }
+module.exports = { parse }
 
