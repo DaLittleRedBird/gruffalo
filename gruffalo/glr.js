@@ -1,6 +1,14 @@
 
-const { LR1 } = require('./grammar')
+const { LR1 } = require('./grammar');
+var highestId = 0;
 
+function helloQuestionmark(label) {
+    //Is this going to be on the main page?
+    this.label = label;
+    this.edgesById = {};
+    // data?
+    this.id = ++highestId;
+}
 
 class Node {
   constructor(label) {
