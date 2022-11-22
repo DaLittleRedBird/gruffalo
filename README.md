@@ -1,7 +1,7 @@
 Gruffalo
 ========
 
-Parser generator.
+A forked parser generator.
 
 ![The Gruffalo](.github/gruffalo.png)
 
