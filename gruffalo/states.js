@@ -1,9 +1,5 @@
 
-const {
-  Rule,
-  LR1,
-  Grammar
-} = require('./grammar');
+const {Rule, LR1, Grammar} = require('./grammar');
 
 var i;
 const CLREOF = "$";
