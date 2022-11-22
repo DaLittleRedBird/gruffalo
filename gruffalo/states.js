@@ -1,17 +1,17 @@
 
-const {Rule, LR1, Grammar} = require('./grammar');
+const { GrammarRule, CLR, ContextFreeGrammar } = require('./grammar');
 
 var i;
 const CLREOF = "$";
 
-
+//TODO : probably speed this up, somehow...
 function dotStr(x) {
-  x = x.toString();
-  if (/^[0-9]+$/.test(x)) return x;
-  if (/^[a-zA-Zε]+$/.test(x)) return x;
-  x = x.replace(/"/g, '\\"');
-  x = x.replace(/\n/g, '\\l') + '\\l'
-  return '"' + x + '"';
+    x = x.toString();
+    if (/^[0-9]+$/.test(x)) { return x; }
+    if (/^[a-zA-Zε]+$/.test(x)) { return x; }
+    x = x.replace(/"/g, '\\"');
+    x = x.replace(/\n/g, '\\l') + '\\l';
+    return '"' + x + '"';
 }
 
 //WARNING : The State function has NOT been tested, if you want to use Gruffalo, fork the original code.
@@ -29,7 +29,7 @@ function State(grammar) {
 }
 
 State.prototype.addItem = function(item) {
-    if (!(item instanceof LR1)) { throw new Error('not an LR1'); }
+    if (!(item instanceof CLR)) { throw new Error('not an LR1'); }
     this.items.push(item);
     if (item.isAccepting) {
       this.accept = item;
@@ -100,9 +100,7 @@ State.prototype.debug = function(symbol, statesByHash) {
     var r = '';
     r += 's' + this.index + '\n';
     for (let lookahead in this.reductions) {
-        for (let item of this.reductions[lookahead]) {
-            r += '  [' + lookahead + '] -> reduce <' + item.rule + '> ' + item.dot + '\n';
-        }
+        for (let item of this.reductions[lookahead]) { r += '  [' + lookahead + '] -> reduce <' + item.rule + '> ' + item.dot + '\n'; }
     }
     for (let match in this.transitions) { r += '  [' + match + '] -> push s' + this.transitions[match].index + '\n'; }
 
