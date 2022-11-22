@@ -95,7 +95,7 @@ ContextFreeGrammar.prototype.addProductionRule = function(rule) {
     this.rules.push(rule);
     if (!(rule instanceof GrammarRule)) {throw 'not a rule';}
     rule.priority = ++this.highestPriority;
-    var set = this.ruleSets[rule.target];
+    let set = this.ruleSets[rule.target];
     if (!set) { this.ruleSets[rule.target] = set = []; }
     set.push(rule);
 }
@@ -133,13 +133,13 @@ ContextFreeGrammar.prototype.firstTerminalFor = function(symbol, seenRules) {
 }
 
 //TODO : test this rigourously
-ContextFreeGrammar.prototype.firstTerminal = function(symbol, seenRules) {
+ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     if (symbols.length === 0) { return { '$null': true }; }
     let hash = symbols.join(', ');
     if (this._listFirst[hash]) { return this._listFirst[hash]; }
     let result = {};
     for (var i = 0; i < symbols.length; i++) {
-        let terminals = this.firstTerminalFor(symbols[i], seenRules)
+        let terminals = this.firstTerminalFor(symbols[i], seenRules);
         for (var key in terminals) { result[key] = true; }
         if (!terminals['$null']) { break; }
     }
