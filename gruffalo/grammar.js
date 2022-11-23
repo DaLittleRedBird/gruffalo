@@ -1,4 +1,4 @@
-var i, highestGrammarID = 0, highestCLRStateID = 0;
+var highestGrammarID = 0, highestCLRStateID = 0;
 const CLREOF = "$";
 
 //WARNING : The ContextFreeGrammar, GrammarRule and CLR functions have NOT been tested, if you want to use Gruffalo, fork the original code.
@@ -59,7 +59,7 @@ function CLR(rule, dot, lookahead) {
 CLR.prototype.isRightNullable = function(grammar) {
     //This is the function that makes this GLR parser possible in the first place.
     let symbols = this.rule.symbols;
-    for (i = this.dot; i < symbols.length; i++) { if (!grammar.firstTerminalFor(symbols[i])['$null']) { return false; } }
+    for (let i = this.dot; i < symbols.length; i++) { if (!grammar.firstTerminalFor(symbols[i])['$null']) { return false; } }
     return true;
 }
 
@@ -118,7 +118,7 @@ ContextFreeGrammar.prototype.firstTerminalFor = function(symbol, seenRules) {
     seenRules = seenRules || {};
 
     let result = {}, hasNull = false;
-    for (i = 0; i < rules.length; i++) {
+    for (let i = 0; i < rules.length; i++) {
         let rule = rules[i];
         if (seenRules[rule.id]) { continue; }
         seenRules[rule.id] = true;
@@ -138,7 +138,7 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     let hash = symbols.join(', ');
     if (this._listFirst[hash]) { return this._listFirst[hash]; }
     let result = {};
-    for (i = 0; i < symbols.length; i++) {
+    for (let i = 0; i < symbols.length; i++) {
         let terminals = this.firstTerminalFor(symbols[i], seenRules);
         for (let key in terminals) { result[key] = true; }
         if (!terminals['$null']) { break; }
