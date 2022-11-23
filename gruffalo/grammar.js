@@ -13,6 +13,7 @@ function GrammarRule(target, symbols, build) {
     this.target = target;
     this.build = build;
     this._items = {};
+    this.toString = function() { return this.target.toString() + ' → ' + this.symbols.join(' '); };
     this.id = ++highestGrammarID;
 }
 
@@ -22,15 +23,13 @@ GrammarRule.prototype.startItem = function(lookahead) {
     if (!symbols.length) { return this._items[lookahead] = new CLR(this, 0, lookahead); }
     let previous, dot = 1, first = previous = new CLR(this, 0, lookahead);
     for (; dot < symbols.length; dot++) {
-      let lr0 = new CLR(this, dot, lookahead);
-      previous.advance = lr0;
-      previous = lr0;
+        let lr0 = new CLR(this, dot, lookahead);
+        previous.advance = lr0;
+        previous = lr0;
     }
     previous.advance = new CLR(this, dot, lookahead);
     return this._items[lookahead] = first;
 }
-
-GrammarRule.prototype.toString = function() { return this.target.toString() + ' → ' + this.symbols.join(' '); }
 
 //This one is bizzare...
 GrammarRule.prototype.reverse = function() {
@@ -51,7 +50,6 @@ function CLR(rule, dot, lookahead) {
     this.lookahead = lookahead;
     this.getHash = function() { return this.rule.id + '$' + this.dot; }
     this.isAccepting = function() { return this.rule.isAccepting && this.wants === undefined && this.lookahead == CLREOF; }
-    
     if (typeof lookahead !== 'string') { throw new Error(JSON.stringify(lookahead)) }
 }
 
@@ -140,7 +138,7 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     let result = {};
     for (let i = 0; i < symbols.length; i++) {
         let terminals = this.firstTerminalFor(symbols[i], seenRules);
-        for (let key in terminals) { if (key !== '$null' || i == symbols.length - 1) { result[key] = true; } }
+        for (let key in terminals) { result[key] = true; }
         if (!terminals['$null']) { break; }
     }
     return this._listFirst[hash] = result;
