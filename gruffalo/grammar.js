@@ -20,8 +20,8 @@ GrammarRule.prototype.startItem = function(lookahead) {
     if (this._items[lookahead]) { return this._items[lookahead]; }
     let symbols = this.symbols;
     if (!symbols.length) { return this._items[lookahead] = new CLR(this, 0, lookahead); }
-    let previous, first = previous = new CLR(this, 0, lookahead);
-    for (let dot = 1; dot < symbols.length; dot++) {
+    let previous, dot = 1, first = previous = new CLR(this, 0, lookahead);
+    for (; dot < symbols.length; dot++) {
       let lr0 = new CLR(this, dot, lookahead);
       previous.advance = lr0;
       previous = lr0;
