@@ -117,7 +117,7 @@ ContextFreeGrammar.prototype.firstTerminalFor = function(symbol, seenRules) {
 
     seenRules = seenRules || {};
 
-    let result = {}, hasNull = false;
+    let result = {};
     for (let i = 0; i < rules.length; i++) {
         let rule = rules[i];
         if (seenRules[rule.id]) { continue; }
@@ -140,7 +140,7 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     let result = {};
     for (let i = 0; i < symbols.length; i++) {
         let terminals = this.firstTerminalFor(symbols[i], seenRules);
-        for (let key in terminals) { result[key] = true; }
+        for (let key in terminals) { if (key !== '$null' || i == symbols.length - 1) { result[key] = true; } }
         if (!terminals['$null']) { break; }
     }
     return this._listFirst[hash] = result;
