@@ -144,6 +144,31 @@ ContextFreeGrammar.prototype.firstTerminal = function(symbols, seenRules) {
     return this._listFirst[hash] = result;
 }
 
+//Returns the grammar in binary normal form.
+ContextFreeGrammar.prototype.binarize = function() {
+    let output = new ContextFreeGrammar({start : this.start}), stack = this.rules, curRule, newNonterm, idx = 1, jdx = 0;
+    const Capitals = "ABCD";
+    let nonterminals = {};
+    for (let rule = 0; rule < this.rules.length; rule++) { nonterminals[this.rules[rule].target] = true; }
+    while (stack.length > 0) {
+        //pop the top
+        curRule = stack.shift();
+        if (curRule.symbols.length <= 2) { output.addProductionRule(curRule); continue; }
+        //generate a new nonterminal (using a decoder)
+        newNonterm = "A";
+        while (!nonterminals[newNonterm]) {
+            newNonterm = ""; jdx = idx;
+            while (jdx > 0) { newNonterm += Capitals[jdx & 3]; jdx >>= 2; }
+            idx++;
+        }
+        //add to output
+        output.addProductionRule(new GrammarRule(curRule.target, [curRule.symbols[0], newNonterm], (function(A, B) {return [curRule.target, A, B];})));
+        //push to stack
+        stack.unshift(new GrammarRule(newNonterm, curRule.symbols.shift(), (function(C, D) {return [newNonterm, C, D];})));
+    }
+    return output;
+}
+
 /*var cfg = new ContextFreeGrammar({start : "S"});
 cfg.addProductionRule(new GrammarRule("S", ["S", "S"], (function(A) {return ["S", A, A];})));
 cfg.addProductionRule(new GrammarRule("S", ["m", "n"], (function() {return ["S", "m", "n"];})));
